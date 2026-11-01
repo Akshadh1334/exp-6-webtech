@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sweet Delights - Cake Order Tracker</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #fff8f3;
+    display: flex;
+    justify-content: center;
+    padding-top: 40px;
+  }
+  .app {
+    background: #fff;
+    width: 420px;
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  h2 { text-align: center; color: #d6336c; margin-top: 0; }
+  p.sub { text-align: center; color: #888; margin-top: -8px; font-size: 14px; }
+  form { display: flex; gap: 8px; }
+  input[type="text"] {
+    flex: 1; padding: 10px; font-size: 15px;
+    border: 2px solid #ccc; border-radius: 8px;
+  }
+  input[type="text"]:focus { border-color: #d6336c; outline: none; }
+  button {
+    padding: 10px 14px; border: none; border-radius: 20px;
+    background-color: #d6336c; color: #fff; cursor: pointer;
+  }
+  button:hover { background-color: #a61e4d; }
+  .filters { display: flex; gap: 6px; margin: 15px 0; justify-content: center; }
+  .filters button { background-color: #eee; color: #333; }
+  .filters button.active { background-color: #d6336c; color: #fff; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px; border-bottom: 1px solid #f5d5e0;
+  }
+  li:nth-child(odd) { background-color: #fff0f5; }
+  li span { cursor: pointer; flex: 1; }
+  li small { margin-right: 10px; color: #e67e22; font-weight: bold; }
+  li.done span { text-decoration: line-through; color: #999; }
+  li.done small { color: green; }
+  li button { background-color: #888; padding: 5px 10px; border-radius: 6px; }
+  #counter { text-align: center; color: #555; margin-top: 15px; }
+</style>
+</head>
+
+<body>
+<div class="app">
+  <h2>🎂 Cake Order Tracker</h2>
+  <p class="sub">Click an order to mark it Delivered</p>
+
+  <form id="taskForm">
+    <input type="text" id="taskInput" list="cakes"
+           placeholder="Cake name, e.g. Black Forest x1">
+    <datalist id="cakes">
+      <option value="Chocolate Truffle">
+      <option value="Strawberry Delight">
+      <option value="Black Forest">
+      <option value="Pineapple Cream">
+      <option value="Red Velvet">
+      <option value="Vanilla Classic">
+    </datalist>
+    <button type="submit">Add Order</button>
+  </form>
+
+  <div class="filters">
+    <button id="f-all"  class="active" onclick="setFilter('all')">All</button>
+    <button id="f-open" onclick="setFilter('open')">Pending</button>
+    <button id="f-done" onclick="setFilter('done')">Delivered</button>
+  </div>
+
+  <ul id="taskList"></ul>
+  <p id="counter"></p>
+</div>
+
+<script>
+  // ---------- State ----------
+  var tasks = [];          // list of cake orders
+  var filter = "all";
+
+  var form    = document.getElementById("taskForm");
+  var input   = document.getElementById("taskInput");
+  var list    = document.getElementById("taskList");
+  var counter = document.getElementById("counter");
+
+  // ---------- Creating data ----------
+  function createTask(text) {
+    return {
+      id: Date.now(),
+      text: text,
+      done: false          // false = Pending, true = Delivered
+    };
+  }
+
+  // ---------- Save + redraw helper ----------
+  function saveAndRender() {
+    localStorage.setItem("cakeOrders", JSON.stringify(tasks));
+    renderTasks();
+  }
+
+  // ---------- Functions that change the orders ----------
+  function addTask(text) {
+    tasks.push(createTask(text));
+    saveAndRender();
+  }
+
+  function toggleTask(id) {
+    tasks = tasks.map(function (t) {
+      return t.id === id ? { id: t.id, text: t.text, done: !t.done } : t;
+    });
+    saveAndRender();
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter(function (t) { return t.id !== id; });
+    saveAndRender();
+  }
+
+  function setFilter(name) {
+    filter = name;
+    document.getElementById("f-all").className  = (name === "all")  ? "active" : "";
+    document.getElementById("f-open").className = (name === "open") ? "active" : "";
+    document.getElementById("f-done").className = (name === "done") ? "active" : "";
+    renderTasks();
+  }
+
+  // ---------- Helper functions for drawing ----------
+  function getVisible() {
+    if (filter === "open") {
+      return tasks.filter(function (t) { return !t.done; });
+    } else if (filter === "done") {
+      return tasks.filter(function (t) { return t.done; });
+    } else {
+      return tasks;
+    }
+  }
+
+  function countOpen() {
+    return tasks.filter(function (t) { return !t.done; }).length;
+  }
+
+  function taskItem(t) {
+    var li = document.createElement("li");
+    if (t.done) { li.className = "done"; }
+
+    var span = document.createElement("span");
+    span.textContent = "🍰 " + t.text;
+    span.onclick = function () { toggleTask(t.id); };
+
+    var status = document.createElement("small");
+    status.textContent = t.done ? "Delivered" : "Pending";
+
+    var del = document.createElement("button");
+    del.textContent = "Cancel";
+    del.onclick = function () { deleteTask(t.id); };
+
+    li.appendChild(span);
+    li.appendChild(status);
+    li.appendChild(del);
+    return li;
+  }
+
+  // ---------- Drawing the screen ----------
+  function renderTasks() {
+    list.innerHTML = "";
+    getVisible().forEach(function (t) {
+      list.appendChild(taskItem(t));
+    });
+    counter.textContent = countOpen() + " order(s) pending";
+  }
+
+  // ---------- Connecting the page to the functions ----------
+  function handleSubmit(event) {
+    event.preventDefault();               // stop page reload
+    var text = input.value.trim();
+    if (text !== "") {
+      addTask(text);
+    }
+    input.value = "";
+  }
+
+  form.addEventListener("submit", handleSubmit);   // passed, not called
+
+  // ---------- Start the app: load saved orders, render once ----------
+  function loadTasks() {
+    var saved = localStorage.getItem("cakeOrders");
+    if (saved) {
+      tasks = JSON.parse(saved);
+    }
+  }
+
+  loadTasks();
+  renderTasks();
+</script>
+</body>
+</html>
